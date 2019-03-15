@@ -1,0 +1,467 @@
+1、组件间通讯
+	在建立组件时，要确保组件间是松耦合的，保证组件的可重用性。
+
+	以组件间通讯在组件间传递数据，松耦合各个组件。
+	
+	组件只暴露出输入和输出接口，处理数据在它内部实现，组件之间并不知道数据要发送给谁，也不知道接收到的数据是由谁发送的，每个组件就是一个黑盒模型，只暴露出需要的接口。如果要接收某个数据，需要自己去订阅这个数据，这个过程中不必知道数据是谁发的，只要能拿到数据就可以。
+
+	①父子组件之间传递数据
+		一、输入属性
+			＊被@Input()装饰器装饰的属性。
+			＊只能在有父子关系的组件之间可以传递参数。
+			
+			子组件通过@Input()装饰器装饰一个属性，父组件通过属性绑定方式向子组件传递数据到子组件的输入属性。
+			子组件：//selector:'app-order'
+				 　@Input()
+				  stockeCode: string;
+
+				  @Input()
+				  amount: number;
+
+			父组件：//通过属性传递向子组件传递数据
+				　　<app-order [stockeCode]="stock" [amount]="100"></app-order>
+					
+			父组件的数据改变会影响子组件的输入属性，而子组件中对输入属性的值的改变不回影响父组件，说明输入属性数据的传递是单向的。
+			输入属性也是组件本很身的属性，可以正常使用，只不过它比其他正常属性多了一个功能是可以接受父组件传递的参数。只要父组件传递的值发生变化，子组件的输入属性就会发生变化。
+
+
+		二、输出属性
+			＊＊＊用@Output()装饰器装饰的属性(其实是一个事件，事件参数为输出属性)
+			＊＊＊只能在有父子关系的组件之间使用
+			＊＊＊子组件向父组件发送一个事件，事件中传递的参数是要输出的属性
+			＊＊＊事件为EventEmitter类型,　要传入一个泛型，指明需要输出的属性数据的类型
+			＊＊＊@Output()装饰器装饰的是一个EventEmitter对象
+			＊＊＊如果没有用@Output()装饰这个事件对象，这个事件是无法触发执行的(emit方法不会将事件触发)，也就无法传递数据
+			＊＊＊当需要输出数据时，需要执行定义的EventEmitter事件，通过EventEmitter.emit(数据)方法执行事件动作
+		
+			父组件通过检测事件的变化执行自定义函数，通过得到自定义函数的参数实现取得子组件传递的数据
+			事件触发时，事件的回调函数中的$event参数(在angular模板中函数的event事件对象参数要写为$event)即为输出的数据
+			EventEmitter事件一般都要使用@Output()来装饰，默认的事件名称就是EventEmitter对象的变量名，可以通过在@Output装饰器中传递参数改变事件名称，当然，这里改变的只是事件名称，事件对象的变量名不变，在子组件中对事件对象的引用用的依然是变量名，只是在父组件检测的事件名称发生变化，其他并没有什么影响
+			eg:
+				//子组件　selector: "app-price-quote"
+				import {Component, EventEmitter, OnInit, Output} from '@angular/core';
+
+				@Component(...)
+				export class PriceQuoteComponent implements OnInit {
+
+				  @Output('priceChange')    												//装饰输出事件,　这里给其中传入了一个参数，当父元素检测事件时要检测这个事件名，也就是 priceChange，没有这个装饰器，这个事件是不会触发执行的
+				  lastPrice: EventEmitter<PriceQuote> = new EventEmitter<PriceQuote>();  	//EventEmitter类型是rxjs包中的类型，传入的泛型是需要通过这个事件发送的数据的类型,lastPrice是事件对象的引用
+					...
+				  constructor() {
+					setInterval( () => {
+					  let priceQuote: PriceQuote = new PriceQuote( this.stockCode, 100 );
+					  this.lastPrice.emit(priceQuote);　　　								　	//通过emit()方法，将一个数据输出出去
+					}, 1000 );
+				  }
+				  ngOnInit() {
+				  }
+				}
+
+				export class PriceQuote{
+				  constructor(
+					public stockCode: string,
+					public lastPrice: number
+				  ) {}
+				}
+				
+
+				//父组件模板中：
+				<app-price-quote (priceChange)="stockChange($event)"></app-price-quote>			//检测　priceChange　事件(如果在子组件中没有向@Output()传值，这里监测的应该是 lastPrice　事件)，响应这个事件的方法中传递的 $event　参数就是子组件输出的数据，每当子组件事件执行一次，这里就能检测到一次事件执行。我们可以注意到自定义事件绑定和普通事件绑定的写法是一样的，当然，因为这个自定义事件是创建在子组件内部的，所以只有子组件可以触发这个自定义事件，给其他组件绑定这个事件，因为内部没有实现这个事件，也就不能执行它，所以永远也不会触发它　(＊＊＊＊但是，要注意事件冒泡，如果给这个组件的父组件也加上这个事件的绑定，父级组件也会执行它＊＊＊＊)
+				
+				//父组件控制器：
+				．．．
+				@Component(．．．)
+				export class AppComponent {
+				  private lastPrice: PriceQuote;
+
+				  stockChange( event: PriceQuote ){		//用于响应子组件自定义事件的方法
+					this.lastPrice = event;
+				  }
+
+				}
+
+
+	②使用路由传递数据，详见关于路由的笔记。
+
+	③中间人模式
+		中间人负责从一个组件接收数据并将其传递给另一个组件
+		一般用父组件作为两个同级组件的中间人
+		也可以选择一个可依赖注入的服务来作为中间人
+
+＊＊＊＊＊＊在写一个项目时，动手之前要先仔细设计各个组件以及之间的接口，确保可重用和松耦合
+
+
+
+
+
+
+２、angular的生命周期钩子
+	组件初始化阶段的钩子：　　初始化阶段完成后，会看到组件页面
+					＊constructor	
+					　　ngOnChanges
+					＊ngOnInit	
+					　　ngDoCheck
+					＊ngAfterContentInit		
+					　　ngAfterContentChecked
+					＊ngAfterViewInit			
+					　　ngAfterViewChecked
+
+	变化检测阶段钩子：		确保组建的属性与页面保持同步
+					　　ngOnChanges
+					　　ngDoCheck
+					　　ngAfterContentChecked
+					　　ngAfterViewChecked
+
+	组件销毁阶段钩子:		当组件从ＤＯＭ树上移除(路由等操作)
+					＊ngOnDestroy
+
+
+	总共有九个钩子。
+	其中带有　＊　标记的钩子在一个组件的生命周期中只会被调用一次，其他钩子会被多次调用。
+	
+	这些钩子都是在@angular/core核心库里面定义的接口，每一个接口都有一个唯一的钩子方法，方法的名字为:　'ng接口的名字'　，在typeScript和javascript中，是否implements这些接口都是可选的，因为在js中没有接口这样的类型，在typescript转为javascript时，是没有这些接口的定义的，所以，是否implements接口无所谓，只要实现了需要的接口方法就可以，但是还是强烈建议在编写时implements接口，这样有IDE和ts的强类型检查，降低出错率。
+
+	①构造函数是必须要实现的，其他的钩子是可选的，如果发生了某个生命周期事件，而这个组件没有实现这个钩子方法时，angular会跳过这个组件，如果实现了相应的事件钩子，angular就会调用这个钩子方法。
+	
+	调用顺序：
+		#1 name在contructor里的值是:
+
+		#2 name在ngOnChanges里的值是:tom
+		
+		#3 ngOnInit
+		
+		#4 ngDoCheck
+		
+		#5 ngAfterContentInit
+		
+		#6 ngAfterContentChecked
+		
+		#7 ngAfterViewInit
+		
+		#8 ngAfterViewChecked
+		
+		#9 ngDoCheck
+		
+		#10 ngAfterContentChecked
+		
+		#11 ngAfterViewChecked
+
+
+	②ngOnChanges:　当一个父组件修改或初始化一个子组件的＊输入属性＊时被调用，如果组件没有输入属性，那么这个方法永远不会被调用。	而它的首次调用一定发生在ngOnInit()事件之前。
+
+		＊获取输入的值: 
+					通过ngOnChanges方法的参数changes　(changes['输入属性名'].currentValue;)
+					这个参数对象的内容为：
+							{
+								输入属性名1: { previousValue: 更改前的值, currentValue: 更改后的当前值, firstChange: 是否第一次更改 },
+								输入属性名2: { previousValue: 更改前的值, currentValue: 更改后的当前值, firstChange: 是否第一次更改 }
+								......
+							}
+				ｅｇ:
+					ngOnChanges(changes: SimpleChanges): void {
+						let name = changes['name'].currentValue;
+						this.logIt('name在ngOnChanges里的值是:' + name);
+					}
+
+		＊可变对象和不可变对象：
+			○不可变对象：number、string、boolean、undefined、null
+				不可变对象的意思是，他们本身不能被改变。
+				比如: 	var a = 'hello';
+						a = 'hello wprld';
+						上面给ａ重新赋值时，并不是更改了原来的 'hello'，而是在内存中重新创建了一个字符串给了a，a相当于直接换了一个值　(注意，是给了a并不是把地址给了a，因为它们是传值的)。
+
+			○可变对象：Object、Array...
+				可变对象意思是它们本身可以被改变。
+				比如：	var a = { title: 'tom' };
+
+						a.title = 'jonry';
+						上面对a的更改就是对a所引用的对象的更改，可变对象是传址的，所以a所引用的地址一直不变。
+
+						a = { title: 'tom2' };
+						这时候上面的更改是对a指向的更改，原有对象不会被改变，而是直接将a重新指向了另外一个对象，a的引用地址变化了。
+		
+		＊而对于ngOnChanges事件，它检测某个输入属性的值的改变，当这个属性为不可变对象时，它的改变会直接调用ngOnChanges事件，当这个属性为可变对象时，如果输入属性所引用的地址并没有变化，那么将不会调用ngOnchanges事件。
+		
+	③ngOnInit：如果组件存在输入属性，则在首次ngOnChanges调用之后被调用，用来初始化组件或指令
+		注意，构造函数在ngOnChanges之前被调用，ngOnInit在ngOnChanges之后被调用，所以，如果初始化逻辑要依赖输入属性的值，则初始化逻辑一定要写在ngOnInit中，不要写在构造函数中，否则可能会被覆盖。
+
+	④ngDoCheck：用来检测，它在每个变更检测周期中被调用
+		实现：　变更检测机制由zone.js实现。
+		目的：　主要目的是保证组件属性的变化和页面的变化是同步的。
+
+		＊浏览器中发生的任何异步事件都会触发变更检测(比如点击按钮、点击input输入框、输入数据、定时器、从服务器返回等等)，所以它会被非常频繁的调用，甚至只是点击输入框不输入值都会触发它
+
+	＊＊＊而且只要发生了变更检测，所有事件名称中带有Check的事件钩子都会被触发，并且是整个组件树都会触发，所以这些方法所处理的过程必须很简化、很轻量、很高效。
+
+		＊变更检测机制会检测组件模板上的所有绑定关系，因为当属性被改变时，组件模板可能需要被更新。
+		＊变更检测机制只是将组件属性的改变反映到模板上，它本身并不会改变组件属性的值。
+
+		＊每个组件都会生成一个属于它自己的变更检测器，当任何一个变更检测器检测到变化，zone.js就会根据组件的变更检查策略来检查组件，以检查组件是否需要更新它的模板。
+		
+		＊变更检查策略：
+			①Default策略：
+				只要有一个组件发生了变更检查，整个组件树都会运行变更检查。
+			②OnPush策略：
+				如果某个组件声明自己的变更检查策略为OnPush，那么只有当这个组件的输入属性发生变化时，zone.js才会检查这个组件及其子组件。
+
+		＊变更检查是从根组件开始的，不管变更发生在那个位置。
+		＊只要进行检查，就会调用ngDoCheck钩子。
+
+
+
+	⑤ngAfterContentInit：和组件的内容投影相关
+		
+		ngAfterContentInit:当父组件投影内容初始化完毕后调用。一个生命周期内只调用一次。
+		１、内容投影的组装发生在视图内容组装完成之前，因为视图的组装需要依赖投影的内容
+		２、在投影内容初始化或变更完毕后，可以立即更改属性值，因为此时视图的组装还没有完成，所以不会报错(也不会触发变更检测)
+		３、父组件的投影内容初始化和变更发生在子组件之前
+		４、父组件的视图内容初始化和变更发生在子组件之后
+
+		也即是这样的顺序：　(请配合视图钩子尝试)
+			父组件投影内容初始化完毕
+			父组件投影内容变更检测完毕
+			子组件投影内容初始化完毕
+			子组件投影内容变更检测完毕
+
+			子组件视图内容初始化完毕
+			子组件视图内容变更检测完毕
+			父组件视图内容初始化完毕
+			父组件试图内容变更检测完毕
+
+
+
+		❤　投影：将父组件模板中的片段投影到子组件中去
+
+			１．在子组件中定义<ngContent></ngContent>
+			２．父组件引用子组件时可以向子组件的<ng-content>标签中传递内容
+			３．可以在父组件向子组件中不同位置传递内容
+
+			＊eg:传递一个内容
+			//子组件模板 app-child
+				<div>
+					子组件内容
+					<ng-content></ng-content>
+				</div>
+	
+			//父组件模板 
+				<div>
+					父组件内容
+					<app-child>
+						<div>在父组件中向子组件传递的模板内容</div>
+					</app-child>
+				<div>
+
+		
+			＊eg:传递多个内容
+			//子组件模板　app-child
+				<div>
+					子组件内容
+					<ng-content select=".header">投影页头内容</ng-content>
+					<ng-content select=".content">投影内容</ng-content>
+					<ng-content select=".footer">投影页脚内容</ng-content>
+				</div>
+
+			//父组件模板
+				<div>
+					父组件内容
+					<app-child>
+						<div class="header">在父组件中向子组件传递的页头内容</div>
+						<div class="content">在父组件中向子组件传递的页面内容</div>
+						<div class="footer">在父组件中向子组件传递的页脚内容</div>
+					</app-child>
+				<div>
+		
+		
+			＊可以在父组件中向子组件传递父组件自己的属性值
+			eg: //父组件模板
+				<div>
+					父组件内容
+					<app-child>
+						<div class="header">在父组件中向子组件传递的页头内容 　　	{{父组件属性}}</div>　//属性绑定
+						<div class="content">在父组件中向子组件传递的页面内容　	{{父组件属性}}</div>	//属性绑定
+						<div class="footer">在父组件中向子组件传递的页脚内容　　	{{父组件属性}}</div>	//属性绑定
+					</app-child>
+				<div>
+		
+		
+			注意：
+			１、子组件中的 <ng-content> 中不能写内容，否则会报错
+			２、子组件中的样式不会应用到　<ng-content> 上，因为子组件中的投影内容是在父组件中定义的，所以子组件中的投影内容应用的是父组件的样式
+			３、父组件向子组件写投影，可以在投影内容中属性绑定父组件的属性
+			４、当子组件中没有<ng-content>标签时，直接在父组件向子组件写内容是不能成功的
+
+		❤　子组件可以通过 ContentChild　或 ContentChildren　获得父组件传进来的　‘子组件’　 (！！！在投影内容初始化完毕后才有效，因为这时才能拿到投影的内容！！！)
+
+			//投影到子组件的组件: other
+				<div>...</div>		
+	
+			//子组件: child
+				<div> 
+					<ng-content></ng-content> 
+				</div>
+
+			//父组件 
+				<div> 
+					<child> 
+						<other></other> 
+						<other></other> 
+					</child> 
+				</div>
+
+			１、@ContentChild()装饰器
+				
+				@ContentChild( type | string | function )
+				name: type;
+
+				ngAfterContentInit(){
+					console.log( this.name );
+				}
+
+			２、@ContentChildren()装饰器
+				
+				@ContentChildren( type | string | function )
+				names: QueryList<type>;
+　
+				ngAfterContentInit(){
+					console.log( this.names );
+					console.log( this.names.toArray() );
+				}
+
+
+	⑥ngAfterContentChecked：和组件的内容投影相关
+		
+		当父组件投影内容变更检测时触发。一个生命周期内可多次调用。
+
+	⑦ngAfterViewInit：和组件的模板视图的初始化、检查相关
+		
+		※在父组件中调用子组件的方法： 					
+			
+			❤　　ViewChild和ViewChildren装饰器用来获取组件内引用的子组件 (！！！在视图初始化完毕后才有效，因为这个时候才能拿到子组件内容！！！)
+			①使用@ViewChild()装饰器	: 	返回一个子视图组件			
+
+				@ViewChild('子组件模板变量名'｜子组件类型　)　　　		//必须传参，否则报错
+				子组件变量名: 子组件类型 (xxxComponent);
+
+				子组件变量名.子组件方法名(参数);　　					//调用子组件中的方法:
+				
+				<子组件 #子组件模板变量名></子组件>					//模板
+
+				eg: @ViewChild('child')　　　或者　　@ViewChild(ChildComponent)
+					child: ChildComponent;
+				
+					child.childfunc();
+
+					<app-child #child></app-child>
+
+			
+			②使用@ViewChildren()装饰器:		返回一个子组件列表，类型为QueryList< ChildComponent >
+
+				@ViewChildren('子组件模板变量名'｜子组件类型　)　　　	//必须传参，否则报错
+				子组件列表变量名: QueryList<子组件类型> ;
+
+				子组件列表变量名.toArray()[i].子组件方法名(参数);	 	//调用子组件中的方法；使用toArray转为一般数组
+				
+				<子组件 #子组件模板变量名></子组件>					//模板
+
+				eg: @ViewChildren('child')	或者 @ViewChildren(ChildComponent)
+					child: QueryList<ChildComponent>;
+				
+					child.toArray()[0].childfunc();
+
+					<app-child #child></app-child>
+
+			③模板中使用:
+
+				<子组件 #子组件模板变量名></子组件>
+				<button (click)="子组件模板变量名.子组件方法(参数)" ></button>
+
+				<button (click)="func(子组件模板变量名)"></button>
+
+				func( child: 子组件类型 ){
+					child.子组件方法(参数);
+				}
+				
+				eg: <app-child #child></app-child>
+					<button (click)="child.childfun()" ></button>	//直接通过模板变量调用
+					<button (click)="parentfun( child )"　></button>	//传递模板变量给自身方法
+					
+					parentfun( child ){
+						child.childfunc();
+					}
+			
+
+			❤　每一个组件模板自身就代表了自己的一个控制器实例对象，所以当把一个模板变量当做参数传入的时候依然可以得到这个模板对应的控制器实例。
+	
+			
+		※ngAfterViewInit　
+			当组件视图内容初始化组装完毕后调用，而且一个生命周期内只调用一次。　　
+			一个组件的视图想要组装好，它的子组件就必须先组装好。所以这个方法的调用顺序是从组件树的最底部向上依次执行的。就是先调用子组件的这个方法，再调用父组件的这个方法。
+			１、在开发者模式下，直接在此方法中对与视图绑定的属性进行改变会报错，因为刚做完视图初始化，不允许立即直接对视图再次做出改变（个人认为，这里不允许直接改变是因为视图变化必须通过变更检测机制来影响，而不经过异步事件对值的直接改变不会触发变更检测，所以禁止直接在这里更改）。但是可以通过设置定时器让这个方法不觉得你是在立即更改视图(或者说调用变更检测)。
+			２、在生产模式下，不会报错，值也会改变，但是不会进行变更检测（就像上面１猜测的一样），也就不会调用视图方法（这是自己测试的，并不知道是否真的是这样）。
+			
+
+
+	⑧ngAfterViewChecked：和组件的模板视图的初始化、检查相关
+			当组件视图内容变更完毕后调用，一个生命周期内可以多次调用。　　
+			在ngOnCheck方法中，我们提到过，变更检测会让所有名字中有Check的方法都被执行，所以，这里也不例外，只要执行了变更检测，这个方法就会被执行(点击按钮、点击输入框、输入数据、定时器。。。)。
+			和ngAfterViewInit一样：
+						一个组件的视图想要组装好，它的子组件就必须先组装好。所以这个方法的调用顺序也是从组件树的最底部向上依次执行的。就是先调用子组件的这个方法，再调用父组件的这个方法。
+
+			和ngAfterViewInit一样：
+					１、在开发者模式下，直接在此方法中对与视图绑定的属性进行改变会报错，因为刚做完视图变化，不允许立即直接对视图再次做出改变（个人认为，这里不允许直接改变是因为视图变化必须通过变更检测机制来影响，而不经过异步事件对值的直接改变不会触发变更检测，所以禁止直接在这里更改）。但是可以通过设置定时器让这个方法不觉得你是在立即更改视图(或者说调用变更检测)。
+					２、在生产模式下，不会报错，值也会改变，但是不会进行变更检测（就像上面１猜测的一样），也就不会调用视图方法（这是自己测试的，并不知道是否真的是这样）。
+
+			这两个视图钩子的执行顺序：
+				子组件的视图初始化完毕
+			
+				子组件的视图变更完毕
+		
+				父组件的视图初始化完毕
+			
+				父组件的视图变更完毕
+
+	
+				子组件的视图变更完毕
+		
+				父组件的视图变更完毕
+				．．．
+			可见：	初始化函数只执行一次，变更函数执行多次；
+					子组件先执行，父组件后执行；
+					先执行初始化，再执行变更；
+					初始化也算变更，所以变更紧挨着初始化出现；
+
+
+
+	⑨ngOnDestroy：
+			组件销毁时调用这个钩子，基本是由路由改变触发的。　　在这个钩子中我们一般来清除一些资源。
+			组件的销毁会触发变更检测，（　变更检测：整个项目的任何变化都会触发变更检测。　emmmmm准确来说应该是：所有异步事件都会触发变更检测(不管是否更改了某个属性，只要有异步事件就会触发变更检测)，个人检测同步事件不会触发变更检测，但是浏览器中发生的事件或者动作都是异步的，所以这个说法基本正确），因为视图发生了变化，（个人认为会发生变更检测的原因为：组价销毁大都由路由触发，而路由的触发要么点击，要么定时，反正都是异步的事件，所以会发生变更检测）。
+			
+		
+
+
+
+
+
+
+
+
+
+	整个初始化过程的执行顺序：
+			
+		先执行 父组件的　数据初始化钩子( constructor、ngOnChanges、ngOnInit、ngDoCheck )　和　投影内容钩子 ( ngAfterContentInit、ngAfterContentChecked )
+		然后调用 子组件的　数据初始化钩子　和　投影内容钩子
+		再调用 子组件的。。。
+		子组件的。。。
+		
+		没有子组件了
+		调用 父组件的　视图内容钩子 ( ngAfterViewInit、ngAfterViewChecked )
+		再调用 父组件的　视图内容钩子
+		在调用 父组件的。。。
+		父组件的。。。
+		直到根组件，初始化完毕。
+
+
+
+
+
+

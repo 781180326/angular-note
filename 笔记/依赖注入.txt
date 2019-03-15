@@ -1,0 +1,109 @@
+1、依赖注入 DI ：如何实现控制反转(实现了控制反转的框架被称为IOC容器，比如angular)
+	松耦合、可重用、提高可测试性(当一个依赖的类型还没有开发完成之前，可以自己先开发一个同样接口的模拟依赖类型注入进去作为测试，当开发完成后只需要修改依赖就可以正常使用了)
+2、控制反转 IOC：将依赖的控制权从代码内部转到代码外部(实例化哪个类有代码外部决定)
+
+	一般情况下，要使用其他类的属性和方法，需要在当前类中实例化其他类，如果要使用另一个其他的类的方法，就需要再实例化一个对象，
+	而在依赖注入中，不需要实例化，依赖注入会自动帮你实例化这个对象，只需要改变某个参数就可以实现不同类对象之间的转换。
+
+	在angular中,使用 providers 属性来声明哪些对象需要依赖注入：
+		providers: [ ProductServices ] (声明ProductServices服务对象需要被依赖注入)
+		==
+		providers: [ provide: ProductServices, useClass: ProductServices ]
+
+	*一个token代表一个可被注入对象的类型，token由providers的provide属性决定*
+
+	上面代码的意思是： 
+		注册一个类型是ProductServices的token，当有组件或指令声明自己需要一个类型为ProductServices的token时，实例化一个useClass属性决定的 ProductServices类型的对象，并将其注入到目标对象。
+	如何声明自己需要一个类型为ProductService的token: 
+		使用构造函数: constructor( productServices: ProductServices ){}
+		这时这个对象中就有了一个名为 productServices的属性，类型为“token是ProductServices的useClass指定的类型”。
+	当要重用某个组件时，只需要更改其依赖的类型就可以：
+		比如重用上面那个组件，只需要更改providers： 
+		providers: [ provide: ProductServices, useClass: AnotherProductServices ] 
+		不需要修改组件内部的代码。
+
+
+3、如何实现依赖注入：
+	一、注入器  
+		注入器之间的层级关系(也是加载关系)：应用级注入器(各个模块里的注入器)--->主组件注入器(本模块中的主组件注入器(appComponent))--->子组件注入器(主组件中嵌入的各个子组件的注入器)--->子组件的子组件注入器--------
+		consturstor( private productServices: ProductServices )
+		**angular只有唯一一个注入点，就是构造函数。**
+		
+		手动注入一个依赖：(使用Injectable的get方法)(这种形式要避免使用，只是用来解释依赖注入的实现的)
+		export class ProductComponent implements OnInit {
+			product: Product;
+			private productService: ProductService;
+			constructor( private injector:Injector ){
+				this.productService = injector.get( ProductService );
+			}
+			.....
+		}
+		这里其实就是在构造函数中注入了Injector类(注意是Injector不是Injectabel)的一个实例对象，然后调用Injector对象的get方法返回一个依赖的实例。
+		get方法中传递的值还是 token ，依然会根据 token 寻找对应的类，然后实例化它。
+		
+		所以，consturctor构造函数中的依赖注入默认就使用了get方法，对于一个' 公有/私有/保护 变量名 : token ' 形式的注入，会寻找token对应的类，实例化这个类，将返回的对象赋值给变量。
+
+	二、提供器
+		providers: [ ProductServices ]
+		providers: [ provide: ProductServers, useClass: ProductServices ]
+		providers: [ provide: ProductServers, useClass: AnotherProductServices ]
+		providers: [ provide: ProductServers, useFactory: ()=>{...} ]
+
+	****声明在组件中的提供器会覆盖声明在模块中的提供器(谁距离近用谁)。
+	****一般情况下，优先将服务声明在模块中，除非当服务必须对某个组件不可见时才将其声明在组件中。
+	****装饰器：@Injectable() 的意思是，可以将其他服务注入到当前装饰器装饰的这个类中来--------也就是说，如果要将服务注入到当前类，当前类必须用@Injectable()装饰。
+	****建议将所有服务都加上@Injectable() 装饰器， 这样可以统一，也便于在当前服务中注入其他服务。
+	****@Componet() 装饰器、@Pipe() 装饰器 都是 @Injectable() 装饰器的子类， 因此他们本身就有@Injectable()装饰器的get()方法， 本身就带有注入能力。
+
+
+	如果在需要根据条件决定具体实例化哪个对象或者需要在实例化对象时传递参数，这时候需要使用工厂函数传递：
+	providers: [ 
+		{ 	provide: ProductService, 
+			useFactory: () => { 
+				let logger = new LoggerService(); 
+				let dev = Math.random() > 0.5; 
+				if( dev ){ 
+					return new ProductService(logger); 
+				}else{ 
+					return new AnotherProductService(logger) 
+				} 
+			} 
+		},
+		LoggerService
+	]
+	上面这种方法，在工厂函数中实例化了LoggerService类，这样使这两个类紧密的耦合在一起，可以在工厂方法提供器中声明一个deps属性，deps属性声明在这个工厂方法中需要的依赖：
+	providers: [ 
+		{ 	provide: ProductService, 
+			useFactory: ( logger: LOggerService ) => {  
+				let dev = Math.random() > 0.5; 
+				if( dev ){ 
+					return new ProductService(logger); 
+				}else{ 
+					return new AnotherProductService(logger) 
+				} 
+			} ,
+			deps: [ LoggerService ]
+		},
+		LoggerService
+	]
+	这样他们就在一定程度上解耦合了。但是这里还有一个问题，在工厂方法中的判断是根据其内部的一个随机数决定的，一般情况下我们会使用一个外部的值对工厂方法的返回对象进行判断：
+	providers: [ 
+		{ 	provide: ProductService, 
+			useFactory: ( logger: LOggerService, isDev ) => {  
+				if( isDev ){ 
+					return new ProductService(logger); 
+				}else{ 
+					return new AnotherProductService(logger) 
+				} 
+			} ,
+			deps: [ LoggerService, 'IS_DEV_ENV']
+		},
+		LoggerService，
+		{ 
+			provide: 'IS_DEV_ENV', useValue: false
+		}
+	]
+	注意，这里加入了一个新的提供器，{ provide: '' , useValue:  },provide属性是一个字符串，而其第二个属性不是useClass，而是useValue, 显然，这是一个纯粹用来提供一个值的提供器，token是字符串'IS_DEV_ENV',值是 false,这个构造器的注入不需要在变量名后面家加上'：token类型'，一般用来被其他提供器依赖(deps)。
+	
+	
+	

@@ -1,0 +1,70 @@
+angular表单介绍:
+	１、模板式表单
+		表单的数据模型是通过组件模板中的相关指令来定义的，因为使用这种方式定义表单的数据模型时，我们会受限于HTML的语法，所以，模板驱动方式只适合一些简单的场景。
+
+	２、响应式表单
+		使用响应式表单时，通过编写TypeScript代码而不是HTML代码来创建一个底层的数据模型，在这个模型定义好以后，使用一些特定的指令，将模板上的HTML元素与底层的数据模型连接在一起。
+
+
+	
+	３、模板式表单　和　响应式表单的对比：
+		①不管哪种表单，都有一个对应的数据模型来存储表单的数据：
+			·模板式表单中，数据模型是由angular基于组件模板中的指令隐式创建的。
+			·响应式表单中，通过编码明确的创建数据模型然后将模板和三的HTML与元素与底层的数据模型连接在一起。
+
+		②数据模型并不是一个任意的对象，它是一个由angualr/forms模块中的一些特定的类，如FormControl、FormGroup、FormArray等组成的。在模板式表单中，是不能直接访问到这些类的。
+
+		③响应式表单并不会生成HTML，模板仍然需要编写。　
+
+
+		④不管使用哪种形式的表单，都需要引入对应的模块：		
+			模板式表单：FormsModule
+			响应式表单：ReactiveFormsModule
+
+
+１、模板式表单
+	导入模块：FormsModule
+	可用指令：ngForm、ngModel、ngModelGroup、ngNoForm
+	
+	默认行为：导入了FormsModule模块后，angular中的表单会自动加上一个ngForm指令，有了这个指令，angular就会完全接管这个表单，在HTML模板中定义的验证方式就不会再起作用。
+	
+	阻止默认行为：如果在表单上加入 ngNoForm 指令，则这个表单不会被angular接管。
+
+	指令对应的功能：
+		ngForm		->		让angular接管整个表单
+		ngNoForm	->		阻止angular默认接管表单
+		ngModel		->		声明这个元素的值是angular表单的数据模型
+		ngModelGroup->		声明一组数据模型
+
+	每个指令对应隐式创建生成的对象类型：（这个类用来代表表单的数据模型，并且存储表单的数据）
+		ngForm		->		FormGroup
+		ngModel		->		FormControl
+		ngModelGroup->		FormGroup
+
+	特点：
+		这些指令不止可以被用到表单元素上：
+		eg: <div ngForm></div>	  			//也形成了一个模板表单
+			<div ngModel name="bbb"></div>	//也会生成数据模型，只不过数据模型的值只能为空(数据模型的value即是表单控件的value属性值)，并且会报一个错-- Error: No value accessor for form control with name: 'bbb'　 --name为“bbb”的表单控件没有value属性；
+
+		除了ngNoForm指令外，其他三个指令都可以被模板本地变量引用，以便在模板中访问他们各自对应对象的实例
+			比如ngForm指令可以被一个模板本地变量引用，可以在模板中访问ngForm对象的实例：
+				eg: <form #myform="ngForm" >
+						<input　ngModel name="aaa" type="text">
+					</form>
+					{{myform.value}}
+		
+		表单元素必须有对应指令存在，才能有它的数据模型，有了数据模型才能在表单的数据模型找到对应的数据
+		具有ngModel指令的元素，必须同时给它一个name属性。
+
+		同一个表单中可以有name相同的表单元素。但是在表单数据模型中只会显示一个，显示的数据模型的值是最近变动的那个元素的值。说明表单数据模型的值是当表单元素的value值变化时进行变更赋值的，两个name相同的元素对应同一个数据模型，哪个元素的value值发生变化，数据模型的值就是这个元素的value值（也就说明数据模型的值的变更是通过对数据模型名称的查找，找到与发生变更的元素的name名称相同的的数据模型进行变更）。当这两个元素的模板本地变量都指向ngModel对象时，即使这两个元素具有不同的模板本地变量，它们引用的却是同一个数据模型。
+		
+
+
+
+
+
+
+	
+		
+
+	

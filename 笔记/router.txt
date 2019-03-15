@@ -1,0 +1,245 @@
+1、Routes:路由配置  (path:路由,component:组件)
+2、RouterOutlet:在HTML中标记路由内容呈现位置的占位符指令
+3、Router:执行路由的对象，navigate()、navigateByUrl()(控制器中使用)
+4、RouterLink:在HTML中声明路由导航用的指令（HTML-》a）
+5、ActivatedRoute:当前路由对象的信息
+
+
+定义路由：
+const routes: Routes = [
+    {
+        path: '',
+        redirectTo: 'search',
+        pathMatch: 'full'
+    },
+    {
+        path: 'search',
+        component: SearchComponent
+    },
+    {
+        path: 'header',
+        component: HeaderComponent
+    },
+    {
+        path: '**',
+        component: CarouselComponent
+    }
+]
+@NgModule({
+  declarations: [
+  ...
+  ],
+  imports: [
+  ...
+  RouterModule.forRoot( routes )
+  ]
+
+<a href="" [routerLink]="['/']" >search</a>
+<a href="" [routerLink]="['/header']" >header</a>
+<input type="button" value="header" (click)="toHeader()" class="btn btn-block">
+<router-outlet></router-outlet>
+
+ constructor( private router: Router) { }
+ toHeader() {
+ 	this.router.navigate( [ '/header' ] );
+ }
+
+
+在路由时传递数据：
+1、在查询参数中传递数据(queryParams, snapshot, subscribe )
+	<a href="" [routerLink]="['/header']" [queryParams]="{id:1}">header</a>
+	...
+	import {ActivatedRoute, Params} from '@angular/router';
+	@Component({ ... })
+	export class SearchComponent implements OnInit {
+		private productId: number;
+		constructor(private routeInfo: ActivatedRoute) { }
+		ngOnInit() {
+		    // this.productId = this.routeInfo.snapshot.queryParams['id']; //参数快照
+			this.routeInfo.queryParams.subscribe( (params: Params) => {this.productId = params['id'];}); //参数订阅
+		}
+
+	}
+
+	//http://localhost:4200/search?id=1
+
+2、在路由路径中传递数据( path:route/:参数, [routerLink]="['/header', 4]", ActivatedRoute.params, snapshot, subscribe )
+	{
+        path: 'header/:id',
+        component: HeaderComponent
+    }
+
+	<a href="" [routerLink]="['/header', 1]">header</a>
+	...
+	import {ActivatedRoute, Params, Router} from '@angular/router';
+	@Component({ ... })
+	export class HeaderComponent implements OnInit {
+		private productId: number;
+		constructor( private router: Router, private routeInfo: ActivatedRoute) { }
+		ngOnInit() {
+		    // this.productId = this.routeInfo.snapshot.params['id']; //参数快照
+		    this.routeInfo.params.subscribe( (params: Params) => {this.productId = params['id']; console.log( this.productId ); }); //参数订阅
+		}
+	}
+
+	//http://localhost:4200/header/2
+3、在路由配置中传递数据(定义静态数据,data,ActivatedRoute.data[index];)
+	{
+        path: 'header/:id',
+        component: HeaderComponent,
+		data: [ { productId: 4 } ]
+    }
+	
+	import {ActivatedRoute} from '@angular/router';
+	@Component({ ... })
+	export class HeaderComponent implements OnInit {
+		private productId: number;
+		constructor( private routeInfo: ActivatedRoute) { }
+		ngOnInit() {
+		    this.productId = this.routeInfo.data[0]['productId'];
+		}
+	}
+	
+	
+参数快照：this.productId = this.routeInfo.snapshot.params['id'];
+参数订阅：this.routeInfo.params.subscribe( (params: Params) => this.parductId = params['id'] );
+
+
+重定向路由：	{
+				path: '',
+				redirectTo: 'search',
+				pathMatch: 'full'
+			}
+
+子路由：{
+		    path: 'footer',
+		    component: FooterComponent,
+		    children: [
+		        {
+		            path: ':id',
+		            component: ProductComponent
+		        },
+		        {
+		            path: 'carousel/:id',
+		            component: CarouselComponent
+		        }
+		    ]
+		}
+		在footer模板中需要添加一个<router-outlet>
+
+		子路由其实就是<router-outlet>的路由插座嵌套 (插座间的父子关系)
+		在网页中路由组件出现在<router-outlet>(插座)标签的下面
+		"
+		......
+		<router-outlet _ngcontent-c2=""></router-outlet>
+		<app-product _nghost-c3="">...</app-product>
+		......
+		"
+
+
+		路由信息都是在模块中定义，组件模板本身并不知道路由的定义信息
+
+		主路由routerLInk: [routerLink]="['/route']"
+		子路由routerLInk: [routerLink]="['./route']"
+
+		空路径传参： 	':参数名'	
+		非空路径传参: 	'route/:参数名'	
+
+
+辅助路由：(name, outlet, outlets, primary, /, {})
+
+	<router-outlet></router-outlet>	  主路由
+	<router-outlet name="辅助路由名"></router-outlet>	辅助路由
+	
+	{
+		path: 'home',
+		component: HomtComponent
+	}
+	{
+		path: 'product',
+		component: ProductComponent
+	}
+	{
+		path: 'help1',
+		component: Help1Component,
+		outlet: 'help'
+	}
+	{
+		path: 'help2',
+		component: Help2Component,
+		outlet: 'help'
+	}
+
+	<a [routerLink]="[{ outlets: { primary:'home/23', help: 'help1/46544' } }]"></a>
+	"主路由路由到home并且传递参数为23, 辅助路由help路由到help1并且传递参数为46544"
+
+	<a [routerLink]="[{ outlets: {primary:'product/22', help: 'help2/11' } }]"<a>
+	"主路由路由到product并且参数为22, 辅助路由help路由到help2并且参数为11"
+
+	
+路由守卫：
+	CanActivate: 必须满足某个条件才能导航到某路由
+	CanDeactivate: 必须满足某个条件才能从当前路由离开
+	Resolve: 在路由激活之前获取路由数据，这样在进入路由时就可以立刻使用这些数据
+	
+	1、
+	export class LoginGuard implements CanActivate{
+		canActivate(){											//通过这个方法的返回值确定是否能进入路由
+			let Logged: boolean = Math.random() < 0.5;
+			if( !Logged ){ console.log( '用户未登录' ) }
+			return Logged;
+		}
+	}
+
+	{
+		path: 'header',
+		component: HeaderComponent,
+		canActivate: [ LoginGuard ]
+	}
+
+	providers: [ LoginGuard ]
+
+	2、
+	export class UnsavedGuard implements CanDeactivate<ProductComponent>{ //这里有一个泛型，要保护哪个路由就是哪个组件的泛型
+		canDeactivate( component: ProductComponent ){
+			return window.confirm("您还没有保存，确认要离开吗");
+		}
+	}
+
+	{
+		path: 'header',
+		component: HeaderComponent,
+		CanDeactivate: [ UnsavedGuard ]  						//可以有多个，只要有一个返回false，就不会从当前路由跳出
+	}
+	
+	providers: [ UnsavedGuard ]
+
+	3、
+	export class ProductResolve implements Resolve<Product>{ 	//这里的泛型是要返回的数据的类型,所以要定义一个类用来当作发送数据的泛型
+		resolve ( route: ActivatedRouteSnapshot, state: RouterStateSnapshot ): Observable<Product>|Promise<Product>|Product {
+		    const id: number = route.params['id'];
+		    if ( id == 2 ) { 									// 这里不能用===，会出错，可能是因为路由传递的数据是字符串的
+		        return new Product( 1, 'inphone' ); 			// 将Product类型的数据发送到指定路由组件
+		    } else {
+		        this.router.navigate(['/footer']);
+		        return undefined; 								// 如果返回不为真，就不会跳到对应路由
+		    }
+		}
+	}
+
+	
+  	{
+        path: 'header/:id',
+        component: HeaderComponent,
+        resolve: { product: HeaderResolve } //这里要和指定路由组件(这里就是header)里面接收到的数据一致， product是接受到的数据名， 后面的是创建这个数据对象的路由守卫
+    }
+
+
+	
+	//用data接收数据，注意里面的参数格式 product是在路由配置里的resolve属性中指定的数据名， 后面的Product则是路由守卫返回的数据类型
+	this.routeInfo.data.subscribe( (data: { product: Product }) => {
+            this.id = data.product.id;
+            this.name = data.product.name;
+            console.log( this.id, this.name );
+    } );
+

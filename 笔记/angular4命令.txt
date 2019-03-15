@@ -1,0 +1,10 @@
+ 1、*ngIf:
+<div class="float-left" *ngFor="let star of stars">
+    <div *ngIf="star; else elseBlock">
+        <img src="../../assets/star.svg" alt="">
+    </div>
+    <ng-template #elseBlock>
+        <!--<img src="../../assets/star.svg" alt="">-->
+    </ng-template>
+</div>
+

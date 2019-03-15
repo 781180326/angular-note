@@ -1,0 +1,7 @@
+1、新建项目：  ng new 文件名
+2、引入第三方类库：
+	①npm install jquery --save
+	②修改angular-cli配置文件中的scripts和styles
+	③npm install @types/jquery --save-dev
+3、新建组件：ng g component 组建名
+4、新建服务：ng g service 服务路径/服务名

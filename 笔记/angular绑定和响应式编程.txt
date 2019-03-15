@@ -1,0 +1,181 @@
+数据绑定、响应式编程、管道
+
+数据绑定：
+	1、插值表达式：{{ 表达式 }}   
+	*差值表达式就是一个DOM属性绑定。
+
+	2、属性绑定：[ 属性 ] = "表达式"
+	*属性绑定和插值表达式是同一个东西。
+		eg: <img [src]="imgUrl" > 
+			== 
+			<img src="{{ imgUrl }}" >
+	*属性绑定，绑定了DOM节点的DOM属性，而不是DOM节点的HTML属性。
+		*DOM属性：event.target.value;
+		*HTML属性: event.target.getAttibute('value');
+	*DOM属性的值是变的，HTML属性的值是不变的，HTML属性的值的作用就是初始化DOM属性的值。
+
+	*少量HTML属性和DOM属性之间有着1:1的映射，如id
+	*有些HTML属性没有对应的DOM属性，如colspan
+	*有些DOM属性没有对应的HTML属性，如textContent
+	*就算名字相同，HTML属性和DOM属性也不是同一样东西
+	*HTML属性的值指定了初始值，DOM属性的值表示当前值，DOM属性的值可以改变，HTML属性的值不能改变
+	*模板绑定是通过DOM属性和事件来工作的，而不是HTML属性(它和元素节点的DOM属性进行连接，甚至可以使用title属性、innerHTML和innerText属性等等，不会改变HTML属性)
+	*浏览器中的视图渲染是根据DOM属性的值渲染的(可以看那两张图)
+
+	*HTML属性绑定：(属性绑定除了有DOM属性绑定也有HTML属性绑定)
+		要进行HTML属性绑定，有以下几种格式：
+
+		·基本的属性绑定：[attr.属性名] = "表达式"
+
+		·CSS类绑定：		[class] = "表达式"
+						[class.类名] = "布尔值"
+						[ngClass] = "{ 类名: 布尔值, 类名: 布尔值... }"	
+
+		·样式绑定：		[style.样式名] = "表达式"
+						[style.样式名.单位] = "表达式"
+						[ngStyle] = "{ '样式名': 表达式, '样式名': 表达式 }"
+						
+						[ngStyle]中的属性无法覆盖[style.样式名]的属性
+						[style.样式名]的属性可以覆盖style直接声明的样式
+						[ngStyle]中的属性可以覆盖style直接声明的样式
+					***优先级： [style.样式名] > [ngStyle] > style
+					***每种绑定最多只是覆盖之前存在的样式，并不会完全清除之前的样式，也就是说所有声明过的样式名都会存在一个
+
+
+	**********尽量都用DOM属性绑定，当元素没有DOM属性可供绑定时，才使用HTML属性绑定。
+
+
+
+	3、事件绑定：( click ) = " show() "	  
+	eg: <input (input)="onInputEvent($event)" >   当input事件被触发，执行后面引号中的表达式，引号中可以是函数调用也可以是其他赋值语句，小括号中的事件也可以是自定义事件，传入的$event就是事件对象。
+
+	4、双向绑定  [(ngModel)] = "表达式";
+		ngModel指令使用的事件在不同的HTML标签上是不同的。
+		比如，如果在input上绑定ngModel双向绑定，使用的就是input事件：
+			它的原理可以写成这样：
+				<input [ngModel]="name" />
+				==
+				<input [value]="name" (input)="func1($event)" />
+				func1(event){ this.name=event.target.value; }
+		一般用在表单处理上。用在其他地方用处不大。
+
+
+响应式编程：
+	需要引入ReactiveFormsModule模块
+	1、观察者模式：
+		①可观察对象(被观察)    ②观察者对象
+		向可观察对象注册观察者对象。
+		可观察对象发生改变时，调用观察者对象的方法。		
+
+	2、Rxjs中的观察者模式：
+			var subscription =	Observable.from([1,2,3,4])
+								.filter( e => e%2 == 0; )
+								.map( e => e*e )
+								.subscribe( 	//订阅
+									e => console.log(e),  //处理流发送的数据
+									error => console.error(error),	//处理流中的异常
+									() => console.log('结束啦') //当流中数据发送结束后执行
+								)
+			这里的[1,2,3,4]就是可观察对象，也叫作流，表示一组值或事件的集合，而Observable对象的from方法会帮你创建一个流，
+			在subscribe方法中传入的事件就相当于一个观察者，它知道怎样去监听被Observable发送的值，
+			subscribe方法返回可观察对象，主要用于取消注册，subscription.unsubscribe();
+			操作符：对集合进行处理的纯粹的函数，例如上面的filter、map   
+	3、FormControl
+
+	 <input type="text" class="form-control" [formControl]="titleFilter" placeholder="请输入商品名称">　　　//将自己创建的FormControl对象替换为当前表单元素对应的FormControl对象
+
+	import {FormControl} from '@angular/forms';
+	import 'rxjs-compat/add/operator/debounceTime';　　　　													//　从rxjs-compat引入rxjs的运算符方法
+
+	private titleFilter: FormControl = new FormControl();
+    constructor( ) {
+        this.titleFilter.valueChanges
+            .debounceTime(500)
+            .subscribe(
+                title => this.keyword = title
+            );
+    }
+
+	FormControl对象的valueChanges属性是一个Observabel对象，可订阅观察者，当此FormControl对象的value值发生变化时，向观察者发送消息，观察者调用方法进行处理。
+
+	这里有一个debounceTime方法，是一个运算符方法，参数是事件，单位为毫秒，作用是：
+		如果消息在这个时间长度内被调用超过一次，就先阻止消息发送到观察者方法，直到在这个时间长度内只有一个消息被传递，就把最后一次接收到的消息发送给观察者方法。
+		比如上面这个方法的意思就是，如果FormControl对象的值在500毫秒内发生多次改变，就暂时不发送消息，如果最后一次改变到现在超过500毫秒，将最后一次的值发送给观察者方法。
+
+
+
+
+管道：
+	用于组件模板中。
+	用于将原始数据格式化为目标数据。
+	比如： {{ 3.1415926 | number:'2.2-2'  }} => 3.14
+	{{ 表达式 | 管道1:参数一:参数二:参数三 |　管道２:参数一:参数二:参数三　｜　．．． }}		
+	data管道：格式化时间，可以传递参数,参数类型是字符串，比如　date:'yyyy-MM-dd HH:mm:ss'
+	number管道：格式化数字，可以传递参数，参数类型是字符串，比如　number:'2.1-4' 这个意思是　整数部分两位，小数部分最少1位，最多4位
+	async：异步管道
+	lowercase：格式化字符串为小写
+	uppercase：格式化字符串为大写
+	
+
+	创建管道：ng g pipe 管道路径名
+	管道、组件、指令要声明在模块的　declarations　属性中
+
+	eg:
+
+	 declarations: [
+		...
+		MypipePipe
+		...
+	  ]
+
+	import { Pipe, PipeTransform } from '@angular/core';
+
+	@Pipe({
+	  name: 'mypipe'
+	})
+	export class MypipePipe implements PipeTransform {
+
+	  transform(value: any, args?: any): any {
+		if ( !args ) {
+		  args = '.';
+		}
+		return value.split( '' ).join(args);
+	  }
+	}
+	
+	transform中传递的value是原始值，args是可选参数，return返回的就是管道格式化后输出的值.
+	{{ 'aaaaaaaa' | mypipe:'"' }}  => a"a"a"a"a"a"a"a
+	
+
+	eg:多参数:
+	import { Pipe, PipeTransform } from '@angular/core';
+
+	@Pipe({
+	  name: 'filter'
+	})
+	export class FilterPipe implements PipeTransform {
+
+	  transform(list: any[], filterField: string, keyword: string ): any {
+		if ( !filterField && !keyword ) {
+		    return list;
+		}
+		return list.filter( item => item[filterField].indexOf(keyword) >= 0 );
+	  }
+
+	}
+		
+	使用:
+	{{ product of products | filter:'title':keyword }}  
+	参数之间使用':'分隔开，参数类型要与定义类型相同，这里的keyword是定义在组件控制器中的一个属性，类型是string.
+
+
+
+
+
+
+
+
+
+
+
+
